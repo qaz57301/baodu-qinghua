@@ -19,6 +19,7 @@ class Corrector:
         #成句概率的提升超过阈值则保留修改
         self.threshold = 7
 
+
     #实际上不光是同音字，同形字等也可以加入，本质上是常用的错字
     def load_tongyinzi(self, path):
         tongyinzi_dict = {}
@@ -28,64 +29,59 @@ class Corrector:
                 tongyinzi_dict[char] = list(tongyin_chars)
         return tongyinzi_dict
 
-    def prob_string(self, sentence):
-        prob = self.language_model.calc_sentence_ppl(sentence)
-        return prob
+
+    #根据替换字逐句计算成句概率的提升值, char_list(需要替换字的句子的字的列表): string, candidates：候选的可替换字集， index:
+    def get_candidate_sentence_prob(self, candidates, char_list, index):
+        if candidates == []:
+            return [-1]
+        result = []
+        print("candidates",candidates)
+        for char in candidates:
+            # print(char_list)
+            # print("index", index)
+            char_list[index] = char
+            sentence = "".join(char_list)
+            # print("基线概率",self.sentence_prob_baseline)
+            # print("sentence",sentence)
+            # sentence 的成句概率
+            sentence_prob = self.language_model.predict(sentence)
+            # print("sentence_prob",sentence_prob)
+            #减去基线值，得到提升了多少
+            #sentence_prob_baseline 最初句子的成句概率 self.language_model.predict(string)
+            sentence_prob -= self.sentence_prob_baseline
+            result.append(sentence_prob)
+        return result
 
     #纠错逻辑
     def correction(self, string):
-        # todo  自己尝试实现
-        tongyinzi_dict = self.sub_dict
-        # print(prob)
-        n = len(string)
-        print(n)
-        if n==1:
-            max_prob = self.language_model.calc_sentence_ppl(string)
-            for word in tongyinzi_dict[string]:
-                new_string_prob = self.language_model.calc_sentence_ppl(string.replace(string[n-1], word))
-                if new_string_prob>max_prob:
-                    max_prob=new_string_prob
-                    string=string.replace(string[n-1], word)
-                    return max_prob,string
-        return self.correction(string[n-2]+string[n-1])
-
-
-
-
-
-
-
-
-                
-
+        char_list = list(string)
+        fix = {}
+        #计算一个原句的成句概率
+        self.sentence_prob_baseline = self.language_model.predict(string)
+        for index, char in enumerate(char_list):
+            candidates = self.sub_dict.get(char, [])
+            print(candidates)
+            #注意使用char_list的拷贝，以免直接修改了原始内容
+            candidate_probs = self.get_candidate_sentence_prob(candidates, copy.deepcopy(char_list), index)
+            #如果成句概率的提升大于一定阈值，则记录替换结果
+            if max(candidate_probs) > self.threshold:
+                #找到最大成句概率对应的替换字
+                sub_char = candidates[candidate_probs.index(max(candidate_probs))]
+                print("第%d个字建议修改：%s -> %s, 概率提升： %f" %(index, char, sub_char, max(candidate_probs)))
+                fix[index] = sub_char
+        #替换后字符串
+        char_list = [fix[i] if i in fix else char for i, char in enumerate(char_list)]
+        return "".join(char_list)
 
 
 corpus = open("财经.txt", encoding="utf8").readlines()
 lm = NgramLanguageModel(corpus, 3)
-# print("每国货币政册空间不大",lm.calc_sentence_ppl("每国货币政册空间不大"))
-# print("美国货币政策空间不大",lm.calc_sentence_ppl("美国货币政策空间不大"))
-# print("镁国货币政策空间不大",lm.calc_sentence_ppl("镁国货币政策空间不大"),lm.ngram_count_dict)
+
+cr = Corrector(lm)
+# tongyinzi_dict = cr.load_tongyinzi("tongyin.txt")
 
 
-language_model = NgramLanguageModel(corpus,3)
-cr = Corrector(language_model)
-# print(cr.sub_dict)
-# print(cr.language_model)
-string = "每国货币政册空间不大"  #美国货币政策空间不大
+string = "每国货币政册空间不大"
 fix_string = cr.correction(string)
-# print(fix_string)
-prob=cr.prob_string(sentence=string)
-# print(prob)
-
-# print("修改前：", string)
-# print("修改后：", fix_string)
-
-# wordlist = list("每国货币政册空间不大")
-# print(wordlist)
-# p0 = lm.calc_sentence_ppl("每国货币政册空间不大")
-# tongyinzi = list("镁美媒没酶味枚某霉妹梅沫煤墨眉玫")
-# for word in tongyinzi:
-#     sentence = word+""+"".join(wordlist[1:])
-#     print(sentence)
-#     prob_word_sentence = lm.calc_sentence_ppl(sentence)
-#     print(prob_word_sentence)
+print("修改前：", string)
+print("修改后：", fix_string)
