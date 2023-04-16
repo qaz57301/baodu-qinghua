@@ -36,7 +36,7 @@ class TorchModel(nn.Module):
         # self.embedding = nn.Embedding(vocab_size, hidden_size, padding_idx=0)
         # self.layer = nn.LSTM(hidden_size, hidden_size, batch_first=True,bidirectional=True,num_layers=1)
         self.layer = BertModel.from_pretrained(r"bert-base-chinese",return_dict=False)
-        self.classify = nn.Linear(hidden_size*3, class_num)
+        self.classify = nn.Linear(self.layer.config.hidden_size, class_num)
         self.crf_layer = CRF(class_num, batch_first=True)
         self.use_crf = config["use_crf"]
         # loss 采用交叉熵损失
