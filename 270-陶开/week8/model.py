@@ -19,8 +19,8 @@ class SentenceEncoder(nn.Module):
         max_length = config["max_length"]
         # index = padding_idx 的行用0补充，这里padding_idx=0 即第一行全为0，若padding_idx=1，则index=1的行全为0
         self.embedding = nn.Embedding(vocab_size, hidden_size, padding_idx=0)  # padding_idx=0 意思是下标为0 的行设为0
-        # self.layer = nn.LSTM(hidden_size, hidden_size, batch_first=True, bidirectional=True)
-        self.layer = nn.Linear(hidden_size, hidden_size)
+        self.layer = nn.LSTM(hidden_size, hidden_size, batch_first=True, bidirectional=True)
+        # self.layer = nn.Linear(hidden_size, hidden_size)
         self.dropout = nn.Dropout(0.5)
 
     #输入为问题字符编码
@@ -68,27 +68,15 @@ class SiameseNetwork(nn.Module):
         print("diff", diff)
         return torch.mean(diff[diff.gt(0)])
 
-    def forward(self, sentence1, sentence2=None, target=None):
-        print("sentence1", sentence1)
-        print("sentence2", sentence2)
-        print("target", target)
-        #同时传入两个句子
-        if sentence2 is not None:
-            vector1 = self.sentence_encoder(sentence1)
-            # print("vector1", vector1)
-            # print("vector1.shape", vector1.shape)
-            vector2 = self.sentence_encoder(sentence2)
-            # print("vector2", vector2)
-            # print("vector2.shape", vector2.shape)
-            #如果有标签，则计算loss,
-            if target is not None:
-                return self.loss(vector1, vector2, target.squeeze())
-            #如果无标签，计算余弦距离
-            else:
-                return self.cosine_distance(vector1, vector2)
-        #单独传入一个句子时，认为正在使用向量化能力
+    #sentence: (batch_size, max_length)
+    def forward(self,sentence1, sentence2=None, sentence3=None):
+        if sentence2 is not None and sentence3 is not None:
+            sentence1 = SentenceEncoder(sentence1)
+            sentence2 = SentenceEncoder(sentence2)
+            sentence3 = SentenceEncoder(sentence3)
+            return self.cosine_triplet_loss(sentence1, sentence2, sentence3)
         else:
-            return self.sentence_encoder(sentence1)
+            return self.sentence_encode(sentence1)
 
 
 def choose_optimizer(config, model):
