@@ -66,6 +66,7 @@ class DLSystem:
 
     #槽位抽取
     def get_slot(self, memory):
+        print("all_node_info", self.all_node_info)
         for slot in self.all_node_info[memory["hit_node"]].get("slot", []):
             pattern = self.all_slot_info[slot][1]
             match = re.search(pattern, memory["query"])
@@ -81,7 +82,11 @@ class DLSystem:
         return memory
 
     def dst(self, memory):
+        # slot 槽位， 问题类型
+        print("1111", self.all_node_info[memory["hit_node"]].get("slot", []))
         for slot in self.all_node_info[memory["hit_node"]].get("slot", []):
+            print("dst_memory", memory)
+            print("slot", slot)
             if slot not in memory:
                 memory["require_slot"] = slot
                 return memory
@@ -91,6 +96,7 @@ class DLSystem:
     def take_action(self, memory):
         return memory
 
+    # 策略
     def pm(self, memory):
         if memory["require_slot"] is None:
             memory["policy"] = "reply"
@@ -119,9 +125,13 @@ class DLSystem:
     def run(self, query, memory):
         memory["query"] = query
         memory = self.nlu(memory)
-        memory = self.dst(memory)
-        memory = self.pm(memory)
-        memory = self.nlg(memory)
+        if memory["score"]>0:
+            memory = self.dst(memory)
+            memory = self.pm(memory)
+            memory = self.nlg(memory)
+        else:
+            query=input("没有该项服务，请重新输入：")
+            return self.run(query,memory)
         return memory
 
 if __name__ == "__main__":
@@ -130,14 +140,8 @@ if __name__ == "__main__":
     print(dl.all_node_info)
     memory = {}
     while True:
-        query = input("用户输入需要的服务：")
+        query = input("用户输入：")
         memory = dl.run(query, memory)
         print(memory)
-        if memory["score"]>0:
-            print("系统回答：", memory["response"])
-        else:
-            query = input("该服务暂不提供，请重新输入需要的服务：")
-            memory = dl.run(query, memory)
+        print("系统回答：", memory["response"])
         print()
-
-
