@@ -39,7 +39,7 @@ def find_similar_item(user_to_rating):
     # 依照user对item的打分判断user之间的相似度
     item_to_vector = {}
     total_user = len(user_to_rating)
-    for user,user_rating in user_to_rating.items():
+    for user, user_rating in user_to_rating.items():
         for movie_id, score in enumerate(user_to_rating[user]):
             movie_id+=1
             if movie_id not in item_to_vector:
@@ -53,9 +53,9 @@ def find_similar_item(user_to_rating):
 def find_similar_user(user_to_rating):
     user_to_similar_user = {}
     score_buffer = {}
-    for user_a, rating_a in enumerate(user_to_rating):
+    for user_a, ratings_a in user_to_rating.items():
         similar_user = []
-        for user_b, rating_b in enumerate(user_to_rating):
+        for user_b, ratings_b in user_to_rating.items():
             if user_a == user_b or user_a>100 or user_b>100:
                 continue
             # ab用户互换不用计算similarity
@@ -63,11 +63,15 @@ def find_similar_user(user_to_rating):
                 similarity = score_buffer["%d_%d" %(user_b, user_a)]
             # 相似度计算采取cos距离
             else:
-                similarity = cosine_distance(np.array(rating_a), np.array(rating_b))
+                # print("===")
+                similarity = cosine_distance(np.array(ratings_a), np.array(ratings_b))
+                # print(similarity)
                 score_buffer["%d_%d" %(user_a, user_b)] = similarity
+                # print(score_buffer)
             similar_user.append([user_b, similarity])
-        similar_user = sorted(similar_user, reverse=True, key=lambda x:x[1])
+        similar_user = sorted(similar_user, reverse=True, key=lambda x : x[1])
         user_to_similar_user[user_a] = similar_user
+    # print(user_to_similar_user)
     return user_to_similar_user
 
 #基于user的协同过滤
@@ -77,6 +81,7 @@ def find_similar_user(user_to_rating):
 #topn为考虑多少相似的用户
 #取前topn相似用户对该电影的打分
 def user_cf(user_id, item_id, user_to_similar_user, user_to_rating, topn=10):
+    # print(user_to_similar_user)
     pred_score = 0
     count = 0
     for similar_user, similarity in user_to_similar_user[user_id][:topn]:
@@ -112,12 +117,8 @@ def item_cf(user_id, item_id, similar_items, user_to_rating, topn = 10):
 if __name__ == '__main__':
     user_item_score_data_path = "ml-100k/u.data"
     item_name_data_path = "ml-100k/u.item"
-    user_to_rating, item_id_to_item_name = build_u2i_matrix(user_item_score_data_path,item_name_data_path,write_file=False)
-    print(user_to_rating)
+    user_to_rating, item_id_to_item_name = build_u2i_matrix(user_item_score_data_path, item_name_data_path, write_file=False)
+    # print(user_to_rating)
 
     user_to_similar_user=find_similar_user(user_to_rating)
     # print(user_to_similar_user)
-
-
-
-
